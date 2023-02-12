@@ -1,0 +1,7 @@
+<dependency>
+<groupId>org.thymeleaf.extras</groupId>
+<artifactId>thymeleaf-extras-springsecurity5</artifactId>
+</dependency>
+
+
+이걸 추가하면 th와 비슷하게
