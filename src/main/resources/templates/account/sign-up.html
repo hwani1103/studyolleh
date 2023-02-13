@@ -1,43 +1,10 @@
 <!DOCTYPE html>
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
-<head>
-    <meta charset="UTF-8">
-    <title>StudyOlle</title>
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
-    <style>
-        .container {
-            max-width: 100%;
-        }
-    </style>
+<head th:replace="fragments.html :: head">
+
 </head>
 <body class="bg-light">
-<nav class="navbar navbar-expand-sm navbar-dark bg-dark">
-    <a class="navbar-brand" href="/" th:href="@{/}">
-        <img src="/images/logo_sm.png" width="30" height="30">
-    </a>
-    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
-        <span class="navbar-toggler-icon"></span>
-    </button>
-
-    <div class="collapse navbar-collapse" id="navbarSupportedContent">
-        <ul class="navbar-nav mr-auto">
-            <li class="nav-item">
-                <form th:action="@{/search/study}" class="form-inline" method="get">
-                    <input class="form-control mr-sm-2" name="keyword" type="search" placeholder="스터디 찾기" aria-label="Search" />
-                </form>
-            </li>
-        </ul>
-
-        <ul class="navbar-nav justify-content-end">
-            <li class="nav-item">
-                <a class="nav-link" href="#" th:href="@{/login}">로그인</a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" href="#" th:href="@{/signup}">가입</a>
-            </li>
-        </ul>
-    </div>
-</nav>
+<div th:replace="fragments.html :: main-nav"></div>
 
 <div class="container">
     <div class="py-5 text-center">
@@ -45,12 +12,12 @@
     </div>
     <div class="row justify-content-center">
         <form class="needs-validation col-sm-6" action="#"
-              th:action="@{/sign-up}" th:object="${signUpForm}" method="post" novalidate> <!-- form태그에 오브젝트로 signUpForm선언. 폼태그 내에서 signUpForm객체의 변수에 접근가능. -->
-            <div class="form-group"> <!-- th:field로 선언하면 이 인풋 태그의 value도 nickname, name도 nickname. id도 nickname 뭐 암튼 그렇다.-->
+              th:action="@{/sign-up}" th:object="${signUpForm}" method="post" novalidate>
+            <div class="form-group">
                 <label for="nickname">닉네임</label>
                 <input id="nickname" type="text" th:field="*{nickname}" class="form-control"
                        placeholder="whiteship" aria-describedby="nicknameHelp" required minlength="3" maxlength="20">
-                <small id="nicknameHelp" class="form-text text-muted">          <!-- required 이런거 검증.-->
+                <small id="nicknameHelp" class="form-text text-muted">
                     공백없이 문자와 숫자로만 3자 이상 20자 이내로 입력하세요. 가입후에 변경할 수 있습니다.
                 </small>
                 <small class="invalid-feedback">닉네임을 입력하세요.</small>
@@ -60,11 +27,11 @@
             <div class="form-group">
                 <label for="email">이메일</label>
                 <input id="email" type="email" th:field="*{email}" class="form-control"
-                       placeholder="your@email.com" aria-describedby="emailHelp" required> <!-- email 검증-->
+                       placeholder="your@email.com" aria-describedby="emailHelp" required>
                 <small id="emailHelp" class="form-text text-muted">
                     스터디올래는 사용자의 이메일을 공개하지 않습니다.
                 </small>
-                <small class="invalid-feedback">이메일을 입력하세요.</small> <!-- form에 에러가 나면 invalid-feedback의 텍스트가 나옴.-->
+                <small class="invalid-feedback">이메일을 입력하세요.</small>
                 <small class="form-text text-danger" th:if="${#fields.hasErrors('email')}" th:errors="*{email}">Email Error</small>
             </div>
 
@@ -89,39 +56,11 @@
         </form>
     </div>
 
-    <footer th:fragment="footer">
-        <div class="row justify-content-center">
-            <img class="mb-2" src="/images/logo_long_kr.jpg" alt="" width="100">
-            <small class="d-block mb-3 text-muted">&copy; 2020</small>
-        </div>
-    </footer>
+    <div th:replace="fragments.html :: footer"></div>
+
 </div>
-<script src="https://code.jquery.com/jquery-3.4.1.slim.min.js" integrity="sha384-J6qa4849blE2+poT4WnyKhv5vZF5SrPo0iEjwBvKU7imGFAV0wwj1yYfoRSJoZ+n" crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js" integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo" crossorigin="anonymous"></script>
-<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js" integrity="sha384-wfSDF2E50Y2D1uUdj0O3uMBJnjuUD4Ih7YwaYd1iqfktj0Uod8GCExl3Og8ifwB6" crossorigin="anonymous"></script>
 
-
-<script type="application/javascript">
-    (function () {
-        'use strict';
-
-        window.addEventListener('load', function () {
-            // Fetch all the forms we want to apply custom Bootstrap validation styles to
-            var forms = document.getElementsByClassName('needs-validation');
-
-            // Loop over them and prevent submission
-            Array.prototype.filter.call(forms, function (form) {
-                form.addEventListener('submit', function (event) {
-                    if (form.checkValidity() === false) {
-                        event.preventDefault();
-                        event.stopPropagation();
-                    }
-                    form.classList.add('was-validated')
-                }, false)
-            })
-        }, false)
-    }())
-</script>
-
+<script th:replace="fragments.html :: form-validation"></script>
+<!-- 스크립트 템플릿 조각은 scrip태그나 div태그 다 가능하지만 script태그로 쓰자.-->
 </body>
 </html>

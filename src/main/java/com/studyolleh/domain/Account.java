@@ -41,19 +41,22 @@ public class Account {
 
     private boolean studyCreatedByEmail;
 
-    private boolean studyCreatedByWeb;
+    private boolean studyCreatedByWeb = true;
 
     private boolean studyEnrollmentResultByEmail;
 
-    private boolean studyEnrollmentResultByWeb;
+    private boolean studyEnrollmentResultByWeb = true;
 
     private boolean studyUpdatedByEmail;
 
-    private boolean studyUpdatedByWeb;
+    private boolean studyUpdatedByWeb = true;
+
+    private LocalDateTime emailCheckTokenGeneratedAt; // 토큰이 만들어진 시간.
 
 
     public void generateEmailCheckToken() {
         this.emailCheckToken = UUID.randomUUID().toString();
+        this.emailCheckTokenGeneratedAt = LocalDateTime.now(); // 토큰을 만들면서 시간 저장.
     }
 
     public void completeSignUp() {
@@ -65,4 +68,10 @@ public class Account {
         return this.emailCheckToken.equals(token);
 
     }
+
+    public boolean canSendConfirmEmail(){ // 토큰이 만들어진 시간과 현재시간이 1시간 이상 차이가 나야 함.
+        return this.emailCheckTokenGeneratedAt.isBefore(LocalDateTime.now().minusHours(1));
+    }
+
+
 }
