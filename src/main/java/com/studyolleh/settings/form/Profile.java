@@ -1,4 +1,4 @@
-package com.studyolleh.settings;
+package com.studyolleh.settings.form;
 
 import com.studyolleh.domain.Account;
 import lombok.Data;

@@ -2,7 +2,7 @@ package com.studyolleh.main;
 
 import com.studyolleh.account.AccountRepository;
 import com.studyolleh.account.AccountService;
-import com.studyolleh.account.SignUpForm;
+import com.studyolleh.account.form.SignUpForm;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -12,7 +12,6 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.web.servlet.MockMvc;
 
-import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.response.SecurityMockMvcResultMatchers.authenticated;
 import static org.springframework.security.test.web.servlet.response.SecurityMockMvcResultMatchers.unauthenticated;
@@ -92,7 +91,7 @@ class MainControllerTest {
     @DisplayName("로그아웃")
     @Test
     void logout() throws Exception{
-        mockMvc.perform(post("/login")
+        mockMvc.perform(post("/logout")
                         .with(csrf()))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/"))

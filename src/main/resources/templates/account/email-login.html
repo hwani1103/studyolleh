@@ -11,7 +11,7 @@
     </div>
     <div class="row justify-content-center">
         <div th:if="${error}" class="alert alert-danger alert-dismissible fade show mt-3" role="alert">
-            <span th:text="${error}">완료</span>
+            <span th:text="${error}">오류</span>
             <button type="button" class="close" data-dismiss="alert" aria-label="Close">
                 <span aria-hidden="true">&times;</span>
             </button>
@@ -39,7 +39,7 @@
                 <button class="btn btn-success btn-block" type="submit"
                         aria-describedby="submitHelp">로그인 링크 보내기</button>
                 <small id="submitHelp" class="form-text text-muted">
-                    스터디올래에 처음 오신거라면 <a href="#" th:href="@{/findpassword}">계정을 먼저 만드세요.</a>
+                    스터디올래에 처음 오신거라면 <a href="#" th:href="@{/sign-up}">계정을 먼저 만드세요.</a>
                 </small>
             </div>
         </form>

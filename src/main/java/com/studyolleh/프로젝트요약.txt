@@ -1,0 +1,324 @@
+========================================================================================================================
+
+****localhost:8080/
+--> [ MainController ]
+    @GetMapping("/") //CurrentUser애너테이션을 만들어서. 동적으로, 로그인 했으면 account객체, 안했으면 null로 받고싶다.
+        public String home(@CurrentUser Account account, Model model){
+            if(account != null){
+                model.addAttribute(account);
+            }
+            return "index";
+        }
+    [ index.html ] head, main-nav, footer fragment 삽입. 조건 기능으로
+    <div class="alert alert-warning" role="alert"
+         th:if="${account != null && !account.emailVerified}">
+        스터디올레 가입을 완료하려면 <a href="#" th:href="@{/check-email}"
+                           class="alert-link">계정 인증 이메일을 확인</a>하세요.
+    </div>
+    --> account가 null이 아니고, 즉 로그인을 했고, account.emailVerified가 false이면. 즉 로그인을 했지만
+        이메일 검증이 완료되지 않은 사용자라면. /check/email로 Get요청을 유도하는 a태그, 계정 인증 이메일을 확인하세요 를 보여준다.
+
+****localhost:8080/sign-up
+--> [ AccountController ]
+    @GetMapping("/sign-up")
+        public String signUpForm(Model model){
+            model.addAttribute(new SignUpForm());
+            return "account/sign-up";
+        }
+    비 로그인 상태에서 네비게이션 바의 ' 가입 ' 버튼을 눌렀을때의 요청을 받는 메서드이다. 폼에서 사용될 폼 객체를 만들어서 Model에 담은 뒤
+    sign-up.html을 보여준다.
+
+    [ sign-up.html ] head, main-nav, footer fragments 외에 form-validation fragments도 삽입. 자바스크립트로 Front단 폼 검증.
+    주 기능은 폼에 입력받은 Data를 다시 /sign-up에 post메서드로 요청하는 것이다.
+    Form태그에 signUpForm을 Object로 선언하고 th:field *{nickname}, *{email}, *{password}를 입력받아 오브젝트에 바인딩 되게 한다.
+    th:if="${#fields.hasErrors('nickname')}" th:errors="*{nickname}" 폼에 잘못된 Data를 입력하여 요청했을 시 PostMapping Controller에서
+    Error정보를 받아서 다시 sign-up.html이 보여지면 위의 문장에 의해 해당 field의 에러메세지가 보여진다.
+
+    @PostMapping("/sign-up")          @Valid @ModelAttribute SignUpForm signUpForm, Errors errors 순서는 지켜야된다.
+        public String signUpSubmit(@Validated @ModelAttribute SignUpForm signUpForm, Errors errors){
+            if(errors.hasErrors()){  어카운트 컨트롤러에 정의된 InitBinder 적용 메서드에 추가된 검증기로 검증에 실패한 field가 있다면 에러가 추가됨.
+                return "account/sign-up"; 에러가 하나라도 있으면, 다시 sign-up.html이 보여진다. 그 view단에는 검증 객체랑 에러 객체가 같이 전달된다.
+            }
+            Account account = accountService.processNewAccount(signUpForm); 에러가 없으면, Service를 통해 객체 생성 및 인증이메일 발송 등 로직 처리.
+            accountService.login(account); 문제 없이 이메일 발송까지 끝났다면, 일단 미인증 회원으로 로그인은 시킨다.
+            return "redirect:/"; 일단 PostMapping은 Redirect 처리
+        }
+
+****localhost:8080/check-email-token?token=62ce04ee-b23f-47b2-9243-61910dbab75d&email=worms0905@gmail.com
+--> [ AccountController ]
+    @GetMapping("/check-email-token")
+        public String checkEmailToken(String token, String email, Model model){
+        메서드는 긴데 내용은 간단하다.
+        위의 경로로 겟 요청이 오면 쿼리파라미터의 token, email을 받아서 회원정보 조회, 회원정보나 token이 올바른지 확인
+        올바른 이메일 인증이 끝났을 경우 서비스를 통해 엔티티의 인증완료 메서드를 호출해서
+        해당 회원 엔티티의 emailVerified 불리언 객체를 true로 바꾸고, joinedAt을 설정한다. 가입일을 설정한다.
+        UX적으로 해당 회원이 몇번째 회원인지, 닉네임은 무엇인지 얻어와서 view로 보여준다.
+        error가 없으면 최종 회원가입 완료로 보고 이메일 인증 boolean을 true, 가입날짜를 설정한다. 로그아웃 되어있는 상태였다면 로그인을 시켜준다.
+
+    [ checked-email.html ]
+    /check-email-token 맵핑 메서드에서 검증 오류가 있으면, 오류메시지를 보여준다.
+    if(account == null){
+        model.addAttribute("error", "wrong email"); 계정이 없거나, 토큰이 잘못됐으면 model에 "error"를 추가.
+        return view;
+    <div class="py-5 text-center" th:if="${error}"> 그 "error"가 있으면, 에러 화면을 보여준다.
+    에러가 없으면, 몇번쨰 회원인지, 닉네임이랑, 가입 축하 메세지를 간단하게 보여준다.
+
+****localhost:8080/check/email
+--> [ AccountController ]
+    @GetMapping("/check-email")
+        public String checkEmail(@CurrentUser Account account, Model model){
+            model.addAttribute("email", account.getEmail());
+            return "account/check-email";
+        }
+    메인 페이지에서 로그인O && 인증X조건에 해당하면 인증 요청 경고창이 발생하는데, 그걸 클릭했을때의 요청을 받는 메서드.
+    로그인 된 회원의 정보를 @CurrentUser로 가져와서, 이메일을 얻어온 뒤 화면에 보여주면서 이메일 인증을 하라는 간단한 메세지를 보여준다.
+
+    [ check-email.html ]
+    에러가 없으면, 즉 처음 index화면에서 눌렀을때는 이메일을 보여주면서 인증 이메일을 다시 보내는 a태그를 보여준다.
+
+****localhost:8080/resend-confirm-email
+--> [ AccountController ]
+     @GetMapping("/resend-confirm-email")
+        public String resendConfirmEmail(@CurrentUser Account account, Model model){
+        이 메서드가 하는 일은, 로그인 회원 정보를 가져온 뒤 인증 이메일을 다시 전송할 수 있는 상태인지 확인한다.(1시간에 1번만 가능)
+        불가능하다면 불가능하다는 메시지와 이메일을 model에 담아서 바로 위의 check-email 뷰로 전달한다.
+
+     [ check-email.html ] 2
+     에러가 있으면, 즉 재전송을 요청하였으나 재전송 할 수 있는 상태가 아니라면
+     <div class="py-5 text-center" th:if="${error != null}">
+         <p class="lead">스터디올래 가입</p>
+         <div  class="alert alert-danger" role="alert" th:text="${error}"></div>
+         <p class="lead" th:text="${email}">your@email.com</p>
+     </div> 이메일 주소와 함께 model에서 같이 전달된 error 메세지를 보여준다.
+
+        전송이 가능하다면 Service를 통해 전송을 수행하게 하고 redirect:/ 메인을 보여준다.
+
+****localhost:8080/login
+--> [ MainController ]
+    @GetMapping("/login")
+        public String login(){
+            return "login";
+        }
+    로그인 요청을 받아서 아무것도 안하고 바로 login.html을 보여준다. 로그인/로그아웃 처리는 스프링 시큐리티가 해주기때문에
+    폼객체 전달같은게 필요가 없음. Service에서 UserDetailsService를 구현하고 loadUserByUsername 메서드를 오버라이딩 했기에 가능함.
+    login.html에서 폼 데이터 입력후 /login 경로로 post요청을 하면. loadUserByUsername이 해당 요청을 받아서 처리를 해준다.
+    반환값은 new UserAccount(account) 이다. account는 입력받은 이메일이나 닉네임으로 DB에서 가져온 회원 객체이고, 그 객체를 토대로
+    principal 객체를 만들어서 스프링 시큐리티 자체적으로 반환하면 시큐리티는 그 principal 객체(UserAccount 객체)를 가지고 로그인을 유지시킨다.
+
+    앞서 회원가입 및 이메일 인증 완료 시에 Service의 login메서드가 호출되면서 로그인이 되었다. 그 때에도 principal 객체가 생성되었는데
+    그렇게 하는 로그인방식과 폼 입력 데이터 바인딩 로그인과는 코드만 다를뿐 동일한 기능인 것 같다.
+    폼 로그인 방식은 스프링 시큐리티에서 /login post맵핑을 처리해주는 핸들러가 동작돼서 로그인을 해주는것 같고
+    그 외 특정 조건하에서 로그인을 시키는거는 커스텀하게 코드를 추가해줘서 하는 것 같다.
+    어쨌든 둘다 principal 객체가 생성되어서 로그인이 유지됨
+
+    [ login.html ]
+    로그인 폼 화면을 보여준다. 로그인 정보를 잘못 입력했을 시, Spring Security가 쿼리 파라미터로 에러를 전달해준다. 에러가 있으면 에러를 보여줌.
+    에러가 없으면 정상 로그인이 실행되고 로그인 유지까지 시큐리티가 해준다.
+    로그인 유지 체크박스 . 이게 있으면 리멤버미 토큰이 생성되고, SecurityConfig에서 빈으로 등록한 JdbctokenRepository가 작동해서
+    리멤버미 쿠키를 가지고 로그인이 유지되게 해주는데, 시큐리티 기능 정확하게는 모르겠다.
+    패스워드 없이 로그인하기 a태그가 있다.
+
+****localhost:8080/email-login
+--> [ AccountController ]
+    @GetMapping("/email-login")
+    public String emailLoginForm() {
+        return "account/email-login";
+    }  바로 email-login.html을 보여준다.
+
+    [ email-login.html ]
+    가입할 때 사용한 이메일을 입력하는 폼이 보여진다. 이메일 인증 요청과 동일한 메서드를 통해서
+    인증 메일을 보낼 수 있는 상태인지를 확인한다. 안된다면 model에 error를 추가한다.
+    html에서는 error가 있으면 error 메세지를 띄운다.
+    잘못된 이메일 or 1시간이 안되었다는 에러메세지.
+    둘다 통과했다면 서비스를 통해 sendLoginLink 메서드가 호출된다. 이메일 인증 토큰 보내는 메서드랑
+    거의 동일하지만 sendLoginLink는 토큰을 새로 생성해서 보낸다. 왜냐면 처음 만들어진 토큰은 이메일 인증용 토큰이었기때문.
+    그 토큰을 보낸 뒤 동일 페이지로 리다이렉트된다. 이렇게 패스워드 없이 로그인하기로 보내진 토큰은 /login-by-email 에서 받음.
+
+****localhost:8080/login-by-email
+--> [ AccountController ]
+    @GetMapping("/login-by-email")
+        public String loginByEmail(String token, String email, Model model) {
+        요청 파라미터에 있는 token, email을 받아서. 각각 유효한지 확인. 유효하지 않으면 에러를 추가하고
+        유효하면 Service의 로그인을 호출한다.
+        이어 logged-in-by-email 화면을 띄운다.
+
+    [ logged-in-by-email ]
+    에러가 있으면 에러화면을 띄운다. 이메일로 로그인하려 했는데 해당 이메일이 없거나, 토큰이 잘못되었으면..
+    에러가 없다면 정상 로그인 화면이 나타난다. 패스워드 변경하기 a태그도 같이 나타난다.
+
+****localhost:8080/profile/{nickname}
+--> [ AccountController ]
+    @GetMapping("/profile/{nickname}")
+        public String viewProfile(@PathVariable String nickname, Model model, @CurrentUser Account account){
+    여기서는 요청 파라미터 nickname과 현재 로그인 된 회원의 nickname이 일치한지를 확인해야 한다.
+    요청 파라미터 nickname에 대한 회원정보를 가져온 뒤, 모델에 담는다.
+    이어 로그인 회원 정보와 요청 정보가 일치하다면 isOwner라는 변수를 true로 추가한다.
+
+    [ profile.html ]
+    요청 파라미터 nickname 회원(로그인 회원이랑 일치해야 하는건 아님. 그냥 조회니까 모든 회원 조회 가능)의 정보에
+    프로필 이미지가 있으면 해당 이미지를 프로필에 띄우고, 없으면 닉네임을 얻어와서 jdenticon이미지를 보여준다.
+    그 아래에 한 줄 소개를 보여준다. 만약 한줄소개가 없고 isOwner가 true라면? 즉 요청 파라미터 nickname과 principal객체가 동일하다면
+    한 줄 소개를 입력해주세요. 라는 문구를 같이 띄워준다.
+    이메일 인증이 완료된 회원이라면 가입 날짜가 같이 보여진다.
+    한줄소개, 링크, 주소, 직업등은 처음엔 null이라 안보이고 수정하면 보인다.
+
+****localhost:8080/settings/password
+--> [ SettingsController ]
+    @GetMapping("/settings/password")
+    로그인 회원 principal객체와 새로운 패스워드폼객체를 model에 담아서 뷰를 보여준다.
+    패스워드폼객체는 패스워드와 뉴패스워드 두개의 필드만 가지고 있음.
+    기본적인 검증을 거친 후 두 두 필드가 동일한 값이면 검증 통과. 그 검증은 새로운 검증기 PasswordFormValidator가 실시한다.
+
+    [ password.html ]
+    기본적인 검증 및 두 패스워드가 동일한 검증에 실패하면 에러메세지를 보여준다.
+    검증에 통과하면, 패스워드 변경이 성공했다는 메세지와 함께 해당 화면으로 redirect된다. 쿼리는 DataJPA에게 맡긴다
+
+****localhost:8080/settings/profile
+--> [ SettingsController ]
+    @GetMapping("/settings/profile")
+        public String updateProfileForm(@CurrentUser Account account, Model model) {
+        프로필 화면에서 프로필 수정을 누르면 이 메서드가 받는다.
+        principal 객체와 프로필 수정 폼객체를 새로 만들어서 model에 담아주고, settings/profile 뷰로 전달한다.
+
+    @PostMapping("/settings/profile")
+    public String updateProfile(@CurrentUser Account account, @Valid @ModelAttribute Profile profile, Errors errors,
+                               Model model, RedirectAttributes attributes) {
+        프로필 수정 객체 필드에서 기본적인 검증을 마치고, 실패하면 에러를 보여주고 성공하면 프로필 수정 완료 메세지를 보여준다.
+        서비스의 updateProfile을 호출하여 로그인 회원 엔티티 객체에 프로필 수정 폼객체의 데이터를 복사한다.
+
+    [ settings/profile.html ]
+    프로필 수정 객체의 각 필드들을 수정할 수 있는 폼을 제공한다.
+    또한 프로필 이미지도 변경할 수 있는데 이 때 cropper 라이브러리를 활용한다.
+
+    !! 프로필 수정 html뷰 부분에서 특이한 코드가 있는데, fragments에 파라미터를 전달해서 그거에 맞는 list-group을 보여주는 기능이 있다.
+    <div th:replace="fragments.html :: settings-menu (currentMenu='profile')"></div>
+    여기서 (currentMenu='notifications') 이런식으로 인자를 바꿔주면, 그거에 맞는 list에 class를 add해주면서 시인성을 좋게 해줌.
+
+****localhost:8080/settings/account
+--> [ SettingsController ]
+    @GetMapping(/settings/account)
+        public String updateAccountForm(@CurrentUser Account account, Model model) {
+        로그인 회원 principal객체를 가져온다음, 그 객체의 nickname을 닉네임 폼객체의 필드에 복사한다.
+        그 다음 settings/account를 보여준다.
+
+    @PostMapping(SETTINGS_ACCOUNT_URL)
+    public String updateAccount(@CurrentUser Account account, @Valid NicknameForm nicknameForm, Errors errors,
+                                Model model, RedirectAttributes attributes) {
+    닉네임수정 폼 객체의 기본 검증에 실패하면 에러를 추가한다.
+    에러가 없으면 서비스의 updateNickname 메서드를 호출한다. 바로 닉네임을 변경 쿼리를 날려주고
+    login메서드를 다시 수행, principal객체를 초기화한다. 이걸 해줘야 바뀐 닉네임이 적용된 principal객체를 가져오고
+    이걸 네비게이션 바 html에서 확인한다음 jdenticon을 적절하게 만들어서 보여줄 수 있다.
+    이후 닉네임 변경 완료 메세지를 보여주면서 해당 화면으로 리다이렉트한다.
+
+    [ settings/account.html ]
+    닉네임 수정 폼 객체를 받아서, 폼에서 입력한 새로운 닉네임을 바인딩 한다.
+    계정 삭제 버튼도 있지만 disabled 해두었다.
+
+****localhost:8080/settings/notifications
+--> [ SettingsController ]
+    @GetMapping(SETTINGS_NOTIFICATIONS_URL)
+        public String updateNotificationsForm(@CurrentUser Account account, Model model) {
+        로그인 회원 principal 객체를 모델에 추가한다.
+        알림 설정 폼 객체를 생성하여 모델에 추가한다.
+        settings/notifications 뷰를 띄운다.
+
+    @PostMapping(SETTINGS_NOTIFICATIONS_URL)
+    public String updateNotifications(@CurrentUser Account account, @Valid Notifications notifications, Errors errors,
+                                      Model model, RedirectAttributes attributes) {
+        여기서의 에러는 뭘까? 일단 에러 코드 주석처리 했고 변동사항은 없음.
+        에러 없으면, 서비스의 updateNotifications를 호출해서 principal객체에 알림 폼 객체의 데이터를 복사한다.
+        알림 설정 완료 메세지를 띄우면서 해당 화면으로 리다이렉트한다.
+
+        [ notifications.html ]
+        현재 로그인된 회원 principal객체의 각종 알림 true/false 여부를 읽어와서 체크박스에 표시해서 보여준다.
+        이후 알림 설정 수정 폼 객체에 체크박스 상태를 바인딩해서 /settings/notifications에 post요청을 한다.
+
+
+
+완료 index, sign-up, checked-email, check-email, login, email-login, logged-in-by-email, profile, password, settings/profile
+    account, notifications
+
+미스테리 check-login-email. 어디서 쓰여지는거임??
+
+
+
+
+[ AccountController ]
+@InitBinder
+회원가입 검증 설정
+
+@GetMapping("/sign-up")
+폼에 빈 객체(회원가입용) 전달
+
+@PostMapping("/sign-up")
+폼으로부터 입력받은 정보가 바인딩 된 객체를 받음.
+    에러가 있으면 에러결과를 다시 뷰에 전달
+    에러 없으면, 서비스를 통해 새로운 계정엔티티를 생성하고
+    엔티티에 폼객체의 데이터를 전달해서 저장한 후 이메일 인증 토큰을 생성한다
+    그 다음에 인증확인요청 이메일을 보낸다. 이메일 + 토큰으로. 그다음 redirect :/
+
+체크 이메일 토큰. 이메일토큰으로 이메일과 토큰이 전달되면 이메일을 토대로
+    회원정보를 가져온다음, 회원정보가 없으면? 에러. 토큰이 안맞으면? 에러.
+    둘다 아니면? 엔티티의 completeSignUp메서드 호출. 이메일 검증 불린값을 true로 바꾸고, 가입일을 설정
+    인증이 되어야 가입 일자가 나오는 구조로 설계됨
+
+체크 이메일. 메인화면에서 로그인은 되었지만 검증이 되지 않은 회원에 대해서 검증을 유도하는 작업을 함.
+    @CurrentUser 어노테이션으로 현재 로그인 된 사용자의 정보를 받아서 이메일을 전달해준다.
+    그럼 새로운 뷰에서 로그인 회원의 이메일을 보여주고, 인증메일을 다시 보내기 기능이 제공됨
+
+리센드 컨펌 이메일. 이메일 다시 보내기를 누르면 일단 이메일 전송이 가능한지 canSendConfirmEmail로 체크한다
+    이메일 전송은 1시간에 한번만 가능함. 재전송 가능여부는 단순히 LocalDateTime의 메서드를 활용한것
+    불가능하면 에러메세지. 가능하면 서비스에서 메일을 다시 보낸다.
+
+프로필/닉네임 패스배리어블. 로그인 회원이 fragments 헤더에서 프로필을 눌렀을 경우. @CurrentUser에서
+    회원정보를 얻어 닉네임으로 계정정보를 얻어온다음, 회원정보 널체크를 진행한다.
+    널이 아닐테니, 모델에 계정정보를 추가하고. 그 닉네임으로 얻어온 계정 정보가 로그인한 회원 정보랑 맞는지 확인
+    일치하면 해당 회원의 프로필화면을 보여준다.
+
+이메일-로그인. 로그인 화면에 email-login 태그를 추가함. 패스워드없이 로그인하기를 누르면 해당 요청이 가게 되고
+    그 요청을 누르면 뷰에서는 가입할 때 사용한 이메일을 입력하라고 유도. 입력하면 다시 포스트요청
+    해당 이메일을 토대로 계정정보를 얻어온다음, 널 체크한다. 메일을 보낼수 있는지 체크한다.(1시간1번)
+    둘다 안걸리면, 센드로그인링크(어카운트) ( 처음 이메일 보내는 메서드랑 거의 같지만, 토큰을 새로 만든다는 점이 다름)
+    그다음 redirectAttributes로 메세지, 이메일인증 보냈습니다 하고 이메일로그인으로 리다이렉트
+    **리다이렉트. 새로고침 개념으로 PRG 패턴으로 사용하는것 외에 어떤 차이를 둬야 할 까?
+
+로그인-바이-이메일. 이메일로 보낸 인증체크가 진행되면 해당 메서드가 요청을 받음.
+    해당 이메일의 계정정보를 가져온다음, 널이거나 토큰이 일치하지 않으면 로그인 X
+    그렇지 않으면 로그인(account) 하고 이메일로 로그인이 완료된 화면을 보여줌.
+
+[ AccountRepository ]
+@Transactional(readOnly=true)
+extends JpaRepository<Account, Long>
+어떤 메서드는 오버라이딩을 해야하고, 오버라이딩을 하지 않아도 되는 메서드들도 있다.
+save, count 등등은 그냥 사용 가능.
+
+[ AccountService ]
+
+implements UserDetailsService
+ 스프링 시큐리티를 활용하면 로그인/로그아웃 처리를 시큐리티가 해준다. 하지만 DB접근 등의 추가 작업은
+ 서비스에서 해줘야하기때문에 UserDetailsService를 구현해서 loadUserByUsername 메서드를
+ 구현해주면 됨. UserDetailsService타입의 빈이 하나만 있으면 스프링 시큐리티 설정에 아무것도 해줄필요 X
+ 로그인 로그아웃 전부 동작 됨
+
+AccountService의 의존성 주입은 AccountRepository, JavaMailSender, PasswordEncoder, ModelMapper
+ JavaMailSender 구현한 ConsoleMailSender를 정의했고, 여러개의 메서드를 오버라이딩 해주면 된다. 그중에서 사용할 메서드만
+ 특정해서 구현하면 됨. 현재 프로젝트에서는 send(SimpleMailMessage simpleMailMessage)를 사용중.
+ PasswordEncoder는 @Configuration 설정에서 수동으로 빈을 등록해서 사용한다.
+ PasswordEncoderFactories.createDelegatingPasswordEncoder(); 빈 주입 사용 가능.
+ ModelMapper도 동일하게 Configuration 빈 수동 등록을 해주면 사용 가능. 모델맵퍼는 필수 X
+
+ AccountService의 메서드
+ processNewAccount(SignUpForm signUpForm)
+ 컨트롤러로부터 폼에서 입력된 데이터가 바인딩된 폼객체를 매개변수로 받는다. 그걸 토대로 계정을 생성 + 저장
+ 그다음 이메일토큰을 생성한다음, 이메일을 보낸다. 컨트롤러는 다시 로그인 메서드를 호출한다
+ 로그인 기능은 스프링 시큐리티의 UsernamePasswordAuthenticationToken타입 객체를 생성한다.
+ 매개변수로 principal 닉네임(아이디)과 비밀번호, 그리고 권한을 List로 받는다.
+ 이 메서드가 정상 수행되어 token이 생성되면 로그인이 계속 유지됨.
+ SecurityContextHolder.getContext().setAuthentication(token); .. 시큐리티 기능. 로그인 유지 기능.
+ 이 메서드를 통해 로그인이 유지되면 thymeleaf에서도 sec로 authentication.nickname 이런식으로 접근가능. principal객체
+
+ completeSignUp(Account account) 이거는, 이메일 인증이 완료되면 호출되는 메서드
+ 서비스에서는 엔티티의 completeSignUp을 호출해준다. 인증 불린값을 true로 바꾸고, 가입 날짜를 초기화함.
+ 그리고 로그인을 시킴.
+
+

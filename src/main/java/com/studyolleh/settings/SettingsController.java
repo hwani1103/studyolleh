@@ -3,12 +3,17 @@ package com.studyolleh.settings;
 import com.studyolleh.account.AccountService;
 import com.studyolleh.account.CurrentUser;
 import com.studyolleh.domain.Account;
+import com.studyolleh.settings.form.NicknameForm;
+import com.studyolleh.settings.form.Notifications;
+import com.studyolleh.settings.form.PasswordForm;
+import com.studyolleh.settings.form.Profile;
+import com.studyolleh.settings.validator.NicknameValidator;
+import com.studyolleh.settings.validator.PasswordFormValidator;
 import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.Errors;
-import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.WebDataBinder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.InitBinder;
@@ -58,10 +63,6 @@ public class SettingsController {
         return "settings/profile";
     }
 
-
-    // 검증 결과를 받으려면 Errors나 BindingResult객체를 받아야 하고, 얘들은
-    // 검증해서 받아올 @Valid @ModelATtribute Profile profile 이 바로 다음에 선언해줘야함.
-
     @PostMapping("/settings/profile")
     public String updateProfile(@CurrentUser Account account,
                                 @Valid @ModelAttribute Profile profile,
@@ -110,10 +111,11 @@ public class SettingsController {
     @PostMapping(SETTINGS_NOTIFICATIONS_URL)
     public String updateNotifications(@CurrentUser Account account, @Valid Notifications notifications, Errors errors,
                                       Model model, RedirectAttributes attributes) {
-        if (errors.hasErrors()) {
-            model.addAttribute(account);
-            return SETTINGS_NOTIFICATIONS_VIEW_NAME;
-        }
+//        if (errors.hasErrors()) {
+//            model.addAttribute(account);
+//            return SETTINGS_NOTIFICATIONS_VIEW_NAME; // 이거 무슨 의도인지 모르겠네. 일단 삭제해도 잘 동작됨.
+//        }                 // 일단 어떤 에러가 담길 상황인지 모르겠고, 그 때 account를 모델에 담아서 다시 보낸다?
+        // 아.
 
         accountService.updateNotifications(account, notifications);
         attributes.addFlashAttribute("message", "알림 설정을 변경했습니다.");

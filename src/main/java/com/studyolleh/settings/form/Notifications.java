@@ -1,4 +1,4 @@
-package com.studyolleh.settings;
+package com.studyolleh.settings.form;
 
 import com.studyolleh.domain.Account;
 import lombok.Data;
@@ -24,7 +24,7 @@ public class Notifications {
         this.studyCreatedByEmail = account.isStudyCreatedByEmail();
         this.studyCreatedByWeb = account.isStudyCreatedByWeb();
         this.studyEnrollmentResultByEmail = account.isStudyEnrollmentResultByEmail();
-        this.studyEnrollmentResultByWeb = account.isStudyUpdatedByWeb();
+        this.studyEnrollmentResultByWeb = account.isStudyEnrollmentResultByWeb();
         this.studyUpdatedByEmail = account.isStudyUpdatedByEmail();
         this.studyUpdatedByWeb = account.isStudyUpdatedByWeb();
     }

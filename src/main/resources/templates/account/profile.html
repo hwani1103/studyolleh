@@ -73,12 +73,12 @@
                         <span th:text="${account.email}" class="col-9"></span>
                     </p>
 
-                    <p th:if="${isOwner || account.emailVerified}"> <!-- 해당 프로필의 로그인 사용자이면서 이메일 인증이 된 회원이면 이 p태그를 보여준다.-->
+                    <p th:if="${isOwner || account.emailVerified}"> <!-- 해당 프로필의 로그인 사용자이거나 이메일 인증이 된 회원이면 이 p태그를 보여준다.-->
                             <span style="font-size: 20px;">
                                 <i class="fa fa-calendar-o col-1"></i>
                             </span>
                         <span th:if="${isOwner && !account.emailVerified}" class="col-9"> <!-- 여기 조건식 흐름이 약간 이상한데.. 나중에 봐보자.-->
-                                <a href="#" th:href="@{'/checkemail?email=' + ${account.email}}">가입을 완료하려면 이메일을 확인하세요.</a>
+                                <a href="#" th:href="@{'/check-email?email=' + ${account.email}}">가입을 완료하려면 이메일을 확인하세요.</a>
                             </span>
                         <span th:text="${#temporals.format(account.joinedAt, 'yyyy년 M월 가입')}" class="col-9"></span>
                     </p>

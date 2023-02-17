@@ -1,15 +1,15 @@
 package com.studyolleh.account;
 
+import com.studyolleh.account.form.SignUpForm;
 import com.studyolleh.domain.Account;
-import com.studyolleh.settings.Notifications;
-import com.studyolleh.settings.Profile;
+import com.studyolleh.settings.form.Notifications;
+import com.studyolleh.settings.form.Profile;
 import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -18,7 +18,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import javax.validation.Valid;
 import java.util.List;
 
 @Service
@@ -37,7 +36,7 @@ public class AccountService implements UserDetailsService {
     @Transactional
     public Account processNewAccount(SignUpForm signUpForm) {
         Account newAccount = saveNewAccount(signUpForm);
-        newAccount.generateEmailCheckToken();
+        newAccount.generateEmailCheckToken(); // ** generateEmailCheckToken()을 꼭 여기서 해야 하는 이유?
         sendSignUpConfirmEmail(newAccount);
         return newAccount;
     }
@@ -61,10 +60,10 @@ public class AccountService implements UserDetailsService {
         mailMessage.setSubject("스터디 올래, 회원 가입 인증");
         mailMessage.setText("/check-email-token?token=" + newAccount.getEmailCheckToken() +
                 "&email=" + newAccount.getEmail());
-        javaMailSender.send(mailMessage); // 의존성 주입받은 javaMailSender로 메일 전송.
+        javaMailSender.send(mailMessage);
     }
 
-    public void login(Account account) {            // 이 토큰자체가 어썬티케이션으로 바뀌는데, 첫번째로 넘겨준 파라미터가 principal이다.
+    public void login(Account account) {
         UsernamePasswordAuthenticationToken token = new UsernamePasswordAuthenticationToken(
                 new UserAccount(account), // 여기서 getNickname이 있기 때문에 html에서 authentication.name으로 조회가 됐던거네.
 //                account.getNickname(), // 원랜 이거였음. principal이 getNickname() 즉 String이었는데,
@@ -76,16 +75,8 @@ public class AccountService implements UserDetailsService {
         //로그인 완료 처리. 스프링 시큐리티
     }
 
-
-    /**
-     * 아마도 emailOrNickname이 로그인 폼에서 입력한 문자열. 로그인 폼에서도 이메일 또는 닉네임 임.
-     * 그 값을 가지고 회원정보를 가져온다. 없으면 예외를 발생시키고.
-     * 있으면 그걸 기준으로 principal객체를 만듬. 스프링 시큐리티는 principal을 가지고 이래저래 잘 활용함
-     * 정확한 건 아니지만 아마 그런것같다
-     *
-     */
-    @Transactional(readOnly = true) // 조회만 하는 메서드들은 리드온리 트랜잭션. write lock을 안쓰니까 성능에 유리.
-    @Override
+    @Transactional(readOnly = true)
+    @Override // 스프링 시큐리티의 /login post요청을 받는 메서드.
     public UserDetails loadUserByUsername(String emailOrNickname) throws UsernameNotFoundException {
         Account account = accountRepository.findByEmail(emailOrNickname);
         if(account == null){
@@ -103,6 +94,7 @@ public class AccountService implements UserDetailsService {
         account.completeSignUp();
         login(account);
     }
+
     //이 객체는 세션에 담겨있던 객체이고 처음에는 DB에서 값을 읽어왔지만 이미 Detached되었기 때문에 변경 감지가 일어나지 않음.
     //영속성 컨텍스트가 유지되는것은 뷰를 랜더링할 떄 까지.
     //정확히 어떤 시점에 얘가 Detached가 되었는지는 모르겠지만
@@ -133,7 +125,6 @@ public class AccountService implements UserDetailsService {
         accountRepository.save(account);
     }
 
-
     public void updateNotifications(Account account, Notifications notifications) {
         account.setStudyCreatedByWeb(notifications.isStudyCreatedByWeb());
         account.setStudyCreatedByEmail(notifications.isStudyCreatedByEmail());
@@ -160,7 +151,4 @@ public class AccountService implements UserDetailsService {
                 "&email=" + account.getEmail());
         javaMailSender.send(mailMessage);
     }
-
-
-
 }

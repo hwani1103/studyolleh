@@ -2,8 +2,9 @@ package com.studyolleh.settings;
 
 import com.studyolleh.account.AccountRepository;
 import com.studyolleh.account.AccountService;
-import com.studyolleh.account.SignUpForm;
+import com.studyolleh.account.form.SignUpForm;
 import com.studyolleh.domain.Account;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -46,6 +47,10 @@ class SettingsControllerTestOriginal {
         accountService.processNewAccount(signUpForm);
     }
 
+    @AfterEach
+    void afterEach(){
+        accountRepository.deleteAll();
+    }
 
 
     @WithUserDetails(value = "keesun", setupBefore =
