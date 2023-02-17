@@ -1,6 +1,8 @@
 package com.studyolleh.account;
 
 import com.studyolleh.domain.Account;
+import com.studyolleh.mail.EmailMessage;
+import com.studyolleh.mail.EmailService;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -36,8 +38,18 @@ class AccountControllerTest {
     @Autowired
     private AccountRepository accountRepository;
 
+//    @MockBean
+//    JavaMailSender javaMailSender;
+    //현재 테스트에는 application.properties의 설정을 그대로 따라가기 때문에 local밖에 안됨
+    //자바메일센더는 이제 뭘 보내지 않음.
+    //테스트가 실행될떄는 application.properties를 씀. 테스트용 프로퍼티를 안줘서
+    //그럼 local이 적용되고 console이메일서비스가 작동됨.
+    //이경우엔 EmailService를 해줘야됨.
+    //맨 아래 테스트때문이고, 해당 테스트에서는 뭐 어떤 구현체가 사용되었는지가 아니라
+    //어떤 타입의 메일이 보내졌는지 이니까, EmailService만 주입받으면 된것이다.
+
     @MockBean
-    JavaMailSender javaMailSender;
+    EmailService emailService;
 
     @DisplayName("인증 메일 확인 - 입력값 오류")
     @Test
@@ -118,7 +130,7 @@ class AccountControllerTest {
         assertNotEquals(account.getPassword(), "12345678");
 
         assertNotNull(account.getEmailCheckToken());
-        then(javaMailSender).should().send(any(SimpleMailMessage.class));
+        then(emailService).should().sendEmail(any(EmailMessage.class));
 
     }
 

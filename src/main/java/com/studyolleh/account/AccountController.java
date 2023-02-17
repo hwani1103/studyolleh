@@ -45,7 +45,7 @@ public class AccountController {
     }
 
     @GetMapping("/check-email-token")
-    public String checkEmailToken(String token, String email, Model model){
+    public String checkEmailToken(@CurrentUser Account user, String token, String email, Model model){
         Account account = accountRepository.findByEmail(email);
 
         String view = "account/checked-email";
@@ -58,7 +58,8 @@ public class AccountController {
             return view;
         }
         accountService.completeSignUp(account);
-
+        model.addAttribute("account", user); // 요기쯤에서 메인네비에서 사진안보여서 principal객체 추가함. 다른곳도 안보이는곳 있는데
+        // 모델에 얘 추가하니까 된다.
         model.addAttribute("numberOfUser", accountRepository.count());
         model.addAttribute("nickname", account.getNickname());
         return view;

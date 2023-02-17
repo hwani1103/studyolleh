@@ -1,3 +1,157 @@
+다음에는 몇개 골라서 Transaction의 범위를 따라가보는것도 좋을 듯!
+특히 principal객체. 그리고 Repository를 통해서 조회되는 객체
+@Transactional의 범위 등.
+어떤 메서드에서는 persist상태이고
+어떤 메서드에서는 detached상태인지.
+그 차이를 아는게 중요할듯
+
+
+DB연동 포함 모든거 다 주석 정리하고, 따라가보고
+PPT자료까지 해서 블로그에 정리하자.
+어디부터 해야되는지도 요약쪽 보고
+거기부터시작!
+
+
+edit configuration에서. spring boot -> app -> profile설정에 dev로 해뒀음.
+
+
+
+
+
+@PostMapping(SETTINGS_TAGS_URL + "/remove")
+    @ResponseBody
+    public ResponseEntity removeTag(@CurrentUser Account account, @RequestBody TagForm tagForm){
+        String title = tagForm.getTagTitle();
+        Tag tag = tagRepository.findByTitle(title);
+        if(tag == null){
+            return ResponseEntity.badRequest().build(); // 없는 태그를 삭제하려는 요청은 배드 리퀘스트 빌드 리턴.
+        }
+
+        accountService.removeTag(account, tag);
+        return ResponseEntity.ok().build();
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+@PostMapping(SETTINGS_TAGS_URL + "/add")
+    @ResponseBody
+    public ResponseEntity addTag(@CurrentUser Account account, @RequestBody TagForm tagForm){
+        String title = tagForm.getTagTitle();
+        Tag tag = tagRepository.findByTitle(title);
+        if(tag == null){
+            tag = tagRepository.save(Tag.builder().title(title).build());
+        }
+
+        accountService.addTag(account, tag);
+        return ResponseEntity.ok().build();
+    }
+
+
+
+
+
+
+
+
+
+
+
+@GetMapping(SETTINGS_TAGS_URL)
+    public String updateTags(@CurrentUser Account account, Model model) throws JsonProcessingException {
+        model.addAttribute(account);
+        Set<Tag> tags = accountService.getTags(account);
+        model.addAttribute("tags", tags.stream().map(Tag::getTitle).collect(Collectors.toList()));
+        //태그가 문자열로 바꾸고, Collectors의 toList로 결론. List<String>으로 반환.
+
+        //tag를 전부 가져온다음, List<String>으로 변환하고 나서
+        //ObjectMapper를 사용해서 JSON타입으로 변환해서 뷰에 보낸다!
+        List<String> allTags = tagRepository.findAll().stream().map(Tag::getTitle).collect(Collectors.toList());
+        model.addAttribute("whitelist", objectMapper.writeValueAsString(allTags));
+                                                    // string json타입으로 변환.
+        return SETTINGS_TAGS_VIEW_NAME;
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+"@yaireo/tagify": "^3.5.1",
+    "@yaireo/tagify": {
+      "version": "3.5.1",
+      "resolved": "https://registry.npmjs.org/@yaireo/tagify/-/tagify-3.5.1.tgz",
+      "integrity": "sha512-pYl7xkWCtIsH+m+yDWgCL6TbM+/M0Yqux3fa80niKODRGiU3Dw0MfY/UE1pdmxapr+AZndo1P1ZJ/YapbFau6A=="
+    },
+
+
+    <script type="application/javascript">
+        $(function () {
+            function tagRequest(url, tagTitle) {
+                $.ajax({
+                    dataType: "json",
+                    autocomplete: {
+                        enabled: true,
+                        rightKey: true,
+                    },
+                    contentType: "application/json; charset=utf-8",
+                    method: "POST",
+                    url: "/settings/tags" + url,
+                    data: JSON.stringify({'tagTitle': tagTitle})
+                }).done(function (data, status) {
+                    console.log("${data} and status is ${status}");
+                });
+            }
+
+            function onAdd(e) {
+                tagRequest("/add", e.detail.data.value);
+            }
+
+            function onRemove(e) {
+                tagRequest("/remove", e.detail.data.value);
+            }
+
+            var tagInput = document.querySelector("#tags");
+
+            var tagify = new Tagify(tagInput, {
+                pattern: /^.{0,20}$/,
+                dropdown : {
+                    enabled: 1, // suggest tags after a single character input
+                } // map tags
+            });
+
+            tagify.on("add", onAdd);
+            tagify.on("remove", onRemove);
+
+            // add a class to Tagify's input element
+            tagify.DOM.input.classList.add('form-control');
+            // re-place Tagify's input element outside of the  element (tagify.DOM.scope), just before it
+            tagify.DOM.scope.parentNode.insertBefore(tagify.DOM.input, tagify.DOM.scope);
+        });
+    </script>
+
+
+
 notification부터 코드 복붙했음. 강의에서 스킵해가지고 ..
 notification에 버그 하나 있음. html에 표시해놨으니까, 그거 찾아보면서 복습하고.
 일단 지금까지 구현된부분을 쭉 복습하고, 내껄로 한번 만들어보던지

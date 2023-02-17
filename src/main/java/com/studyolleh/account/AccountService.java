@@ -1,13 +1,20 @@
 package com.studyolleh.account;
 
 import com.studyolleh.account.form.SignUpForm;
+import com.studyolleh.config.AppProperties;
 import com.studyolleh.domain.Account;
+import com.studyolleh.domain.Tag;
+import com.studyolleh.domain.Zone;
+import com.studyolleh.mail.EmailMessage;
+import com.studyolleh.mail.EmailService;
 import com.studyolleh.settings.form.Notifications;
 import com.studyolleh.settings.form.Profile;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.modelmapper.ModelMapper;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -17,50 +24,73 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.thymeleaf.TemplateEngine;
+import org.thymeleaf.context.Context;
 
+import javax.mail.MessagingException;
+import javax.mail.internet.MimeMessage;
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 
 @Service
 @Transactional
 @RequiredArgsConstructor // UserDetailsService 구현 ! 스프링 시큐리티를 사용하면 로그인 처리는 스프링 시큐리티가 해주지만
 // DB에 접근해서 실제 회원정보를 비교하는 등의 작업을 해야하기때문에 아래의 인터페이스는 구현해서 메서드를 작성해줘야 한다.
+@Slf4j
 public class AccountService implements UserDetailsService {
     // UserDetailsService 타입의 빈이 하나만 있으면 스프링 시큐리티 설정에 아무것도 해줄필요없음.
     // 로그인 로그아웃 전부 동작해줌.
 
     private final AccountRepository accountRepository;
-    private final JavaMailSender javaMailSender;
+    private final EmailService emailService; // emailService. 추상화. active profile설정에 따라 ConsoleEmailService or HtmlEmailService가 주입된다.
     private final PasswordEncoder passwordEncoder;
     private final ModelMapper modelMapper;
+    private final TemplateEngine templateEngine;
+    private final AppProperties appProperties;
 
     @Transactional
     public Account processNewAccount(SignUpForm signUpForm) {
         Account newAccount = saveNewAccount(signUpForm);
-        newAccount.generateEmailCheckToken(); // ** generateEmailCheckToken()을 꼭 여기서 해야 하는 이유?
+//        newAccount.generateEmailCheckToken(); // ** generateEmailCheckToken()을 꼭 여기서 해야 하는 이유? // 밑으로 내림!
         sendSignUpConfirmEmail(newAccount);
         return newAccount;
     }
 
     //saveNewAccount(@Valid SignUpForm signUpForm) 에서 @Valid 안 써도 될것같아서 지움. 깃에도 있던데. 문제되면 다시 붙이자.
     private Account saveNewAccount(SignUpForm signUpForm) {
-        Account account = Account.builder()
-                .email(signUpForm.getEmail())
-                .nickname(signUpForm.getNickname())
-                .password(passwordEncoder.encode(signUpForm.getPassword()))
-                .studyCreatedByWeb(true)
-                .studyEnrollmentResultByWeb(true)
-                .studyUpdatedByWeb(true)
-                .build();
+        signUpForm.setPassword(passwordEncoder.encode(signUpForm.getPassword()));
+        Account account = modelMapper.map(signUpForm, Account.class);
+        account.generateEmailCheckToken();
         return accountRepository.save(account);
     }
 
     public void sendSignUpConfirmEmail(Account newAccount) {
-        SimpleMailMessage mailMessage = new SimpleMailMessage();
-        mailMessage.setTo(newAccount.getEmail());
-        mailMessage.setSubject("스터디 올래, 회원 가입 인증");
-        mailMessage.setText("/check-email-token?token=" + newAccount.getEmailCheckToken() +
+        Context context = new Context(); // 타임리프 패키지의 Context. 모델이라고 생각하면 됨.
+        context.setVariable("link", "/check-email-token?token=" + newAccount.getEmailCheckToken() +
                 "&email=" + newAccount.getEmail());
-        javaMailSender.send(mailMessage);
+        context.setVariable("nickname", newAccount.getNickname());
+        context.setVariable("linkName", "이메일 인증하기");
+        context.setVariable("message", "스터디올래 서비스를 사용하려면 링크를 클릭하세요.");
+        context.setVariable("host", appProperties.getHost());
+        String message = templateEngine.process("mail/simple-link", context);
+
+
+        EmailMessage emailMessage = EmailMessage.builder()
+                .to(newAccount.getEmail())
+                .subject("스터디올래, 회원 가입 인증")
+                .message(message)
+
+                .build();
+        emailService.sendEmail(emailMessage);
+
+
+//        SimpleMailMessage mailMessage = new SimpleMailMessage();
+//        mailMessage.setTo(newAccount.getEmail());
+//        mailMessage.setSubject("스터디 올래, 회원 가입 인증");
+//        mailMessage.setText("/check-email-token?token=" + newAccount.getEmailCheckToken() +
+//                "&email=" + newAccount.getEmail());
+//        javaMailSender.send(mailMessage);
     }
 
     public void login(Account account) {
@@ -79,10 +109,10 @@ public class AccountService implements UserDetailsService {
     @Override // 스프링 시큐리티의 /login post요청을 받는 메서드.
     public UserDetails loadUserByUsername(String emailOrNickname) throws UsernameNotFoundException {
         Account account = accountRepository.findByEmail(emailOrNickname);
-        if(account == null){
+        if (account == null) {
             account = accountRepository.findByNickname(emailOrNickname);
         }
-        if(account == null){
+        if (account == null) {
             throw new UsernameNotFoundException(emailOrNickname);
         }
         return new UserAccount(account);
@@ -104,7 +134,7 @@ public class AccountService implements UserDetailsService {
     //객체가 어떤상태인지, 트랜잭션이 유지되고 있는 상태인지 아닌지
     public void updateProfile(Account account, Profile profile) {
         modelMapper.map(profile, account); // profile에 있는걸 account로 옮기고 1:1대응이 되면 이렇게 하면 간단히
-                                            // 간단히 값 복사가 된다.
+        // 간단히 값 복사가 된다.
 //        account.setUrl(profile.getUrl());
 //        account.setOccupation(profile.getOccupation());
 //        account.setLocation(profile.getLocation());
@@ -135,20 +165,78 @@ public class AccountService implements UserDetailsService {
         accountRepository.save(account);
     }
 
-    public void updateNickname(Account account, String nickname){
+    public void updateNickname(Account account, String nickname) {
         account.setNickname(nickname);
         accountRepository.save(account);
         login(account); // 이 로그인을 안해주면, 닉네임을 바꾼게 적용이 안됨 jdenticon떔에 그런듯? principal객체의 닉네임을 토대로 이미지 만드니까?
-            // 이미지를 사진으로 등록해놨으면 상관은 없음.이미지는 어차피 다른곳에서 수정하니까,
+        // 이미지를 사진으로 등록해놨으면 상관은 없음.이미지는 어차피 다른곳에서 수정하니까,
     }
 
     public void sendLoginLink(Account account) {
-        account.generateEmailCheckToken();
-        SimpleMailMessage mailMessage = new SimpleMailMessage();
-        mailMessage.setTo(account.getEmail());
-        mailMessage.setSubject("스터디올래, 로그인 링크");
-        mailMessage.setText("/login-by-email?token=" + account.getEmailCheckToken() +
+        Context context = new Context();
+        context.setVariable("link", "/login-by-email?token=" + account.getEmailCheckToken() +
                 "&email=" + account.getEmail());
-        javaMailSender.send(mailMessage);
+        context.setVariable("nickname", account.getNickname());
+        context.setVariable("linkName", "스터디올래 로그인하기");
+        context.setVariable("message", "로그인 하시려면 아래 링크를 클릭하세요");
+        context.setVariable("host", appProperties.getHost());
+
+        String message = templateEngine.process("mail/simple-link", context);
+
+        EmailMessage emailMessage = EmailMessage.builder()
+                .to(account.getEmail())
+                .subject("스터디올래, 로그인 링크")
+                .message(message)
+                .build();
+        emailService.sendEmail(emailMessage);
+//
+//        account.generateEmailCheckToken();
+//        SimpleMailMessage mailMessage = new SimpleMailMessage();
+//        mailMessage.setTo(account.getEmail());
+//        mailMessage.setSubject("스터디올래, 로그인 링크");
+//        mailMessage.setText("/login-by-email?token=" + account.getEmailCheckToken() +
+//                "&email=" + account.getEmail());
+//        javaMailSender.send(mailMessage);
     }
+
+
+    public void addTag(Account account, Tag tag) {
+        Optional<Account> byId = accountRepository.findById(account.getId());
+        byId.ifPresent(a -> a.getTags().add(tag));
+        // add할떄 주의할 점. 어카운트가 Detached객체임. 먼저 DB에서 읽어와야함.
+
+    }
+
+    public Set<Tag> getTags(Account account) {
+        Optional<Account> byId = accountRepository.findById(account.getId());
+        return byId.orElseThrow().getTags(); // orElseThrow도 반환타입이 Account라서 getTags. 예외 나면 예외 던지고 아니면 겟태그 반환하라는거인듯.
+
+    }
+
+    public void removeTag(Account account, Tag tag) {
+        Optional<Account> byId = accountRepository.findById(account.getId());
+        byId.ifPresent(a -> a.getTags().remove(tag)); //set의 remove
+        //지금은 Tag 객체가 사라진게 아니라, account가 들고있는 Set의 요소 하나하나를 제거할 뿐
+        //해당 객체의 참조는 살아있게 된다.
+        //태그를 어떻게 구현하느냐에 따라 원본 객체까지 제거하거나, 아니면 태그의 생성/삭제는
+        //admin에서 따로 관리하고 그걸 각 유져가 가져다 쓰게만 할 수도 있음.
+
+    }
+
+
+    public Set<Zone> getZones(Account account) {
+        Optional<Account> byId = accountRepository.findById(account.getId());
+        return byId.orElseThrow().getZones();
+    }
+
+    public void addZone(Account account, Zone zone) {
+        Optional<Account> byId = accountRepository.findById(account.getId());
+        byId.ifPresent(a -> a.getZones().add(zone));
+    }
+
+    public void removeZone(Account account, Zone zone) {
+        Optional<Account> byId = accountRepository.findById(account.getId());
+        byId.ifPresent(a -> a.getZones().remove(zone));
+    }
+
 }

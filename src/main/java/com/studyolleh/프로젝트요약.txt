@@ -243,6 +243,105 @@
 
 
 
+****localhost:8080/settings/tags
+--> [ SettingsController ]
+    @GetMapping(SETTINGS_TAGS_URL)
+        public String updateTags(@CurrentUser Account account, Model model) throws JsonProcessingException
+    1. 로그인 회원 정보를 가져온다음, 해당 회원의 Tag를 조회한다. 조회한 Set<Tag> tags를
+    List<String>타입으로 변환하여 모델에 추가한다.
+
+    2. 회원 정보와 상관없이 tagRepository를 통해 모든 태그를 조회한 후, List<String>으로 변환한다.
+    해당 기능은 whitelist를 구현하기 위함. (whitelist는 자동완성 기능 비슷하게 보면 될듯)
+    이 때 List<String>을 그대로 전달하지 않고 ObjectMapper를 사용하여 JSON타입 String으로 변환하여 모델에 추가한다.
+
+    3. view로 이동
+
+    [ tags.html ]
+    일단 태그를 수월하게 추가/삭제, 자동완성 등 여러 태그 관련 기능을 지원하는 tagify라는 라이브러리를 npm 인스톨한다.
+    앞서 모델에서 전달된 List<String>을 String으로 하나씩 꺼내서 input의 밸류로 보여주어야 함.
+    List<String>은 뷰에 전달될 때, ("Spring", "Hibernate", "JPA") 처럼 콤마를 기준으로 구분되어 있다.
+    꺼내고 싶은 데이터는 Spring Hibernate JPA 이런 형식이다. 이럴 때는 Thymeleaf의 strings유틸을 사용한다.
+
+        <input id="tags" type="text" name="tags" th:value="${#strings.listJoin(tags, ',')}"
+        class="tagify-outside" aria-describedby="tagHelp"/>
+    strings의 listJoin을 사용하면, 문자열을 쉽게 split하는 기능을 사용할 수 있다.
+
+    두번째로 whitelist를 구현하기 위해 JSON형식의 String을 모델에서 전달받았는데 그 사용법(팁)은
+        <div id="whitelist" th:text="${whitelist}" hidden></div>
+    tagify의 whitelist기능을 사용하기 위해 받아온 데이터를 여기에 뿌린다음 hidden으로 감춘다.
+    다시 jquery에서 이 id를 참조해서 값을 얻어와서 사용한다.-->
+
+    whitelist: JSON.parse(document.querySelector("#whitelist").textContent),
+    tagify가 제공하는 whitelist 사용. 이미 검색했던 태그들을 자동완성 해줌.
+    JavaScript와 JQuery를 사용한 Ajax요청 처리 부분 코드는 아직 명확히 이해가 안되지만 사용법을 일단 익혀본다.
+    간략하게 Ajax요청을 post요청으로 정의하고, 어떤 이벤트가 발생했을 때 어떤 요청을 보낼 것인지를 정의함.
+
+    @PostMapping(SETTINGS_TAGS_URL + "/add")
+    @ResponseBody
+        public ResponseEntity addTag(@CurrentUser Account account, @RequestBody TagForm tagForm)
+    Ajax요청으로 태그를 추가하는 메서드. 애너테이션 @ResponseBody, @RequestBody가 사용되고 반환타입은 ResponseEntity
+    Ajax요청 JSON타입으로 전달된 폼객체 tagForm을 String으로 변환, String타입으로 태그정보를 얻어온다.
+    해당 태그가 DB에 없으면 만들고, 있으면 있는 태그를 해당 회원의 태그 Set에 저장한다.
+    반환값으로 ResponseEntity타입, 200 OK 응답을 보낸다. 따로 view로 가는건 없다. Ajax 응답으로 바로 화면에 Update됨
+
+    @PostMapping(SETTINGS_TAGS_URL + "/remove")
+    @ResponseBody
+        public ResponseEntity removeTag(@CurrentUser Account account, @RequestBody TagForm tagForm)
+    태그를 삭제하는 메서드. 태그 추가 기능과 거의 같다. 존재하지 않는 태그를 삭제하려는 요청에 대해서는 Bad Request를 응답한다.
+
+    추가로 현재 상태에서, Account엔티티는 Set<Tag> tags를 Value로 가지고 있다. 이 태그를 어떻게 관리할지도 생각해야 함.
+    예를 들어 새로운 Tag의 추가/삭제를 admin에서 진행하고 회원은 DB에 저장된 Tag들만 사용할 수 있으려면 태그를 추가/삭제할 때
+    DB에 추가적인 쿼리를 날려줘야 한다.
+    Tag를 admin에서 관리 - 특정 회원이 tag를 add / remove 할때 DB와는 상관없이 Java 객체 Set에서만 remove해주면 됨.
+    Tag를 회원이 관리 - Tag를 삭제할 때, DB까지 쿼리를 날려서 delete를 해주어야 함. 그렇게 하지 않으면 해당 Tag는 객체 레벨에서는 사라졌지만
+    DB에는 남아있음.
+
+   *Zone(관심지역) 의 경우, Tag랑 거의 일치함. 차이점은 바로 위에 설명한 내용
+   Zone은 태그(지역)의 관리를 admin에서 한다. 회원은 이미 등록된 지역(whitelist에 있는 지역)정보만 추가할 수 있다.
+   따라서 Zone을 삭제할 때에도 객체레벨에서만 삭제하면 논리적임. DB의 정보는 어차피 재사용된다.
+   추가적으로 위키피디아에서 Data를 가져오는 방법, 구글 시트에서 csv로 변환 저장. resources하위에 csv파일로 생성
+   ZoneService에서 그 파일을 어떻게 읽어오고 어떻게 DB에 저장하는지.
+
+   여기서도 객체를 DB에 저장할 때 Detached상태인지 Persist상태인지 잘 알아야 함!..
+
+    JPA 설계할 때, 엔티티인지 Value인지 판단해야 한다.
+    엔티티는 수명주기를 본인이 관리, Value는 Entity에 종속적.
+    ex) Account 엔티티의 Nickname같은 필드는 Value이다.
+    Account <-> Tags같은 경우, 다대 다 단방향 관계로 설정
+    한 회원이 여러개의 태그를 등록할 수 있고, 그 태그는 다른 여러 회원에 대해서 등록되어질 수 있음.
+    다만 단방향 관계로 설정한것은 회원이 가지고있는 태그는 보고싶지만
+    특정 태그를 등록한 회원을 검색하는 기능은 제공하지 않기 때문
+    다대 다 로 설정하면 중간에 join table이 생긴다.
+
+
+
+
+
+
+
+
+
+
+
+
+
+완료 tags, zones
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 [ AccountController ]
 @InitBinder
 회원가입 검증 설정

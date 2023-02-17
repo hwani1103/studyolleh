@@ -4,6 +4,8 @@ import lombok.*;
 
 import javax.persistence.*;
 import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
 
 @Entity
@@ -50,6 +52,13 @@ public class Account {
     private boolean studyUpdatedByEmail;
 
     private boolean studyUpdatedByWeb = true;
+
+    @ManyToMany
+    private Set<Tag> tags = new HashSet<>();
+    // 매니 투 매니 단방향. ToMany는 기본이 레이지로딩.
+
+    @ManyToMany
+    private Set<Zone> zones = new HashSet<>();
 
     private LocalDateTime emailCheckTokenGeneratedAt; // 토큰이 만들어진 시간.
 

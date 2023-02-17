@@ -11,6 +11,14 @@ import org.springframework.stereotype.Component;
 import javax.mail.internet.MimeMessage;
 import java.io.InputStream;
 
+/**
+ * 삭제!
+ *
+ * 메일을 보낼 때. MimeMessage를 보냄. HTML로 만들어진 이메일.
+ * HTML로 만들어진 이메일을 보내려면 MimeMessage로 보내야 함.
+ * SimpleMailMessage말고.
+ */
+
 
 @Profile("local")
 @Component
