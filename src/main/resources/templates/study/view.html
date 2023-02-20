@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="fragments.html :: head"></head>
+<body class="bg-light">
+
+<div th:replace="fragments.html :: main-nav"></div>
+<div th:replace="fragments.html :: study-banner"></div>
+
+<div class="container">
+    <div th:replace="fragments.html :: study-info"></div>
+    <div th:replace="fragments.html :: study-menu(studyMenu='info')"></div>
+
+
+    <div class="row px-3 justify-content-center">
+        <div class="col-10 pt-3" th:utext="${study.fullDescription}"></div>
+    </div>
+    <!-- utext text는 fullDescription에는 html정보가 들어있음. utext는 html을 렌더링해서보여줌.-->
+    <!-- text로 쓰면 <p> hello </p>  그대로 보이고, utext쓰면 p가 적용된 hello만 보임.-->
+
+    <div th:replace="fragments.html :: footer"></div>
+
+    <!-- 자바스크립트 툴팁 기능. 좋다좋다 -->
+    <script type="application/javascript">
+        $(function () {
+            $('[data-toggle="tooltip"]').tooltip()
+        });
+    </script>
+
+</div>
+
+</body>
+</html>

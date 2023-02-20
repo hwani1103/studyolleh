@@ -1,3 +1,6 @@
+
+Transaction 따라가면서. 웹에서 언제 어떤 쿼리가 나가고
+왜 그 쿼리가 나가는지를 다 알고있어야 좋음.!!
 다음에는 몇개 골라서 Transaction의 범위를 따라가보는것도 좋을 듯!
 특히 principal객체. 그리고 Repository를 통해서 조회되는 객체
 @Transactional의 범위 등.
